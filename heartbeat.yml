@@ -1,0 +1,40 @@
+name: Signal Bot Heartbeat
+
+# Free, zero-infrastructure scheduler. Runs in GitHub's cloud - nothing of
+# yours needs to be on. Once Module 4 (scoring engine) lands, this workflow
+# points at main.py instead of the heartbeat script; the schedule and
+# secrets stay exactly the same.
+
+on:
+  schedule:
+    # Every 5 min, Mon-Fri UTC - matches config.primary_timeframe = M5.
+    # Leaving this at 15 min while the config says M5 would have meant only
+    # 4 evaluation opportunities/hour regardless of bar resolution - the
+    # scoring engine would never see 2 of every 3 M5 bars close before the
+    # next poll. This is close to GitHub's practical floor for scheduled
+    # workflows; expect occasional 5-15 min drift under load, and note public
+    # repos get unlimited free minutes at this frequency - private repos
+    # would burn through the free quota fast at every-5-min.
+    - cron: "*/5 * * * 1-5"
+  workflow_dispatch: {}   # lets you trigger it on demand from the Actions tab, from your phone
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send heartbeat
+        env:
+          DATA_SOURCE: twelvedata
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/send_test_heartbeat.py
